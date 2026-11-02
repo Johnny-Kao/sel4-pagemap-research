@@ -39,6 +39,10 @@ else:
         "b_after_c_restore": "0x6b4d2e8c",
         "stale_unmap_c": "0",
         "b_immediately_after_stale_unmap_c": "0x6b4d2e8c",
+        "derived_c_slot_alloc": "0",
+        "derived_c_copy": "0",
+        "revoke_derived_c": "0",
+        "b_after_revoke_c": "0x6b4d2e8c",
         "delete_displaced_c": "0",
         "b_after_displaced_c_delete": "0x6b4d2e8c",
         "stale_a_map_same_va": "0",
@@ -56,13 +60,14 @@ else:
         "remap_a_original": "0",
         "a_after_b_unmap": "0x5a3c1d7b",
     }
+    assert value("revoked_c_unmap") != "0", "Revoked child C unexpectedly callable"
     for i in range(4):
         required[f"repeat_stale_c_unmap_{i}"] = "0"
         required[f"repeat_stale_c_read_{i}"] = "0x6b4d2e8c"
     for key, expected in required.items():
         actual = value(key)
         assert actual == expected, f"{key}: got {actual}, expected {expected}"
-    stages = ["S00_BEGIN", "S01_BEFORE_COLLISION", "S02_AFTER_COLLISION_RC", "S02A_BEFORE_C_COLLISION", "S02B_BEFORE_B_RESTORE", "S02C_CHAIN_COMPLETED", "S02D_REPEAT_COMPLETED", "S02E_DELETE_COMPLETED", "S03_BEFORE_STALE_UNMAP", "S04_AFTER_STALE_UNMAP_OBSERVATION", "S05_BEFORE_B_REMAP", "S06_BEFORE_B_UNMAP", "S99_COMPLETED"]
+    stages = ["S00_BEGIN", "S01_BEFORE_COLLISION", "S02_AFTER_COLLISION_RC", "S02A_BEFORE_C_COLLISION", "S02B_BEFORE_B_RESTORE", "S02C_CHAIN_COMPLETED", "S02D_REPEAT_COMPLETED", "S02E_REVOKE_COMPLETED", "S02F_DELETE_COMPLETED", "S03_BEFORE_STALE_UNMAP", "S04_AFTER_STALE_UNMAP_OBSERVATION", "S05_BEFORE_B_REMAP", "S06_BEFORE_B_UNMAP", "S99_COMPLETED"]
     offsets = [log.index("PAGEMAP_STAGE " + marker) for marker in stages]
     assert offsets == sorted(offsets), "probe stages out of order"
     if arch == "aarch64":
@@ -74,6 +79,7 @@ print("VERDICT: OBSERVED_EXPECTED_TEST_MATRIX arch=" + arch)
 print("LIMIT: does not prove memory isolation, confidentiality, or CVE severity")
 
 print("CASE_AUTH_INVALID_VSPACE_NEGATIVE_CONTROL=OBSERVED_REJECTED")
+print("CASE_REVOKE_DERIVED_C=" + ("NOT_APPLICABLE" if arch == "riscv64" else "OBSERVED_ACTIVE_B_INTACT"))
 print("CASE_DELETE_DISPLACED_C=" + ("NOT_APPLICABLE" if arch == "riscv64" else "OBSERVED_ACTIVE_B_INTACT"))
 print("CASE_COLLISION=" + ("REJECTED_AS_EXPECTED" if arch == "riscv64" else "CONFIRMED_OVERWRITE"))
 print("CASE_STALE_UNMAP=" + ("NOT_APPLICABLE_COLLISION_REJECTED" if arch == "riscv64" else "OBSERVED_NO_DISRUPTION"))
