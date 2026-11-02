@@ -59,6 +59,7 @@ jobs:
           mkdir -p upstream/build
           cd upstream/build
           ../init-build.sh -DPLATFORM=${{ matrix.platform }} -DSIMULATION=TRUE ${{ matrix.extra }} 2>&1 | tee ../../results/configure.log
+          set -o pipefail
           ninja -j2 2>&1 | tee ../../results/build.log
       - name: Run QEMU and capture syscall observations
         shell: bash
@@ -70,6 +71,11 @@ jobs:
           code=${PIPESTATUS[0]}
           set -e
           echo "simulation_exit=$code" >> ../../results/build-info.txt
+          if [ "$code" -ne 0 ]; then
+            echo "Non-zero simulator exit code: $code" >&2
+            echo "INCOMPLETE: simulator did not exit cleanly" | tee ../../results/verdict.txt
+            exit 1
+          fi
           python3 ../../scripts/assert_results.py "${{ matrix.arch }}" ../../results/serial.log | tee ../../results/verdict.txt
       - name: Static source-path audit
         if: always()
