@@ -1,0 +1,84 @@
+name: seL4 Page_Map isolated probe
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "tests/**"
+      - ".github/workflows/validate.yml"
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            platform: x86_64
+            extra: ""
+          - arch: aarch64
+            platform: qemu-arm-virt
+            extra: "-DAARCH64=TRUE"
+          - arch: riscv64
+            platform: spike
+            extra: "-DRISCV64=TRUE"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build ccache git curl python3 python3-pip python3-venv libxml2-utils device-tree-compiler protobuf-compiler python3-protobuf qemu-system-x86 qemu-system-arm qemu-system-misc gcc-aarch64-linux-gnu g++-aarch64-linux-gnu gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
+          mkdir -p "$HOME/bin"
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o "$HOME/bin/repo"
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          python3 -m venv "$RUNNER_TEMP/sel4-venv"
+          "$RUNNER_TEMP/sel4-venv/bin/pip" install sel4-deps
+      - name: Sync fresh upstream (no forks or pushes)
+        run: |
+          mkdir upstream
+          cd upstream
+          "$HOME/bin/repo" init -u https://github.com/seL4/sel4test-manifest.git
+          "$HOME/bin/repo" sync -j4
+      - name: Capture source provenance and inject temporary test
+        run: |
+          mkdir -p results
+          {
+            echo "arch=${{ matrix.arch }}"
+            echo "platform=${{ matrix.platform }}"
+            echo "extra=${{ matrix.extra }}"
+            echo "kernel_sha=$(git -C upstream/kernel rev-parse HEAD)"
+            echo "sel4test_sha=$(git -C upstream/apps/sel4test-tests rev-parse HEAD)"
+            echo "manifest_sha=$(git -C upstream/.repo/manifests rev-parse HEAD)"
+          } | tee results/build-info.txt
+          cat tests/pagemap_collision.c >> upstream/apps/sel4test-tests/src/tests/frames.c
+      - name: Configure and build
+        shell: bash
+        run: |
+          source "$RUNNER_TEMP/sel4-venv/bin/activate"
+          mkdir -p upstream/build
+          cd upstream/build
+          ../init-build.sh -DPLATFORM=${{ matrix.platform }} -DSIMULATION=TRUE ${{ matrix.extra }} 2>&1 | tee ../../results/configure.log
+          ninja -j2 2>&1 | tee ../../results/build.log
+      - name: Run QEMU and capture syscall observations
+        shell: bash
+        run: |
+          source "$RUNNER_TEMP/sel4-venv/bin/activate"
+          cd upstream/build
+          set +e
+          timeout 420 ./simulate 2>&1 | tee ../../results/serial.log
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "simulation_exit=$code" >> ../../results/build-info.txt
+          if ! grep -q 'PAGEMAP_RESULT map_b_occupied=' ../../results/serial.log; then
+            echo "Probe not observed; simulation unsupported, failed, or timed out before test." >&2
+            exit 1
+          fi
+      - name: Upload artifacts even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: page-map-${{ matrix.arch }}
+          path: results/
+          if-no-files-found: warn
