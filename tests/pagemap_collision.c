@@ -107,6 +107,15 @@ static int test_pagemap_collision_isolated(env_t env)
                (unsigned long)*word);
         printf("PAGEMAP_STAGE S02C_CHAIN_COMPLETED\\n");
 
+        /* Repeated stale-cap unmap and immediate observation in one run. */
+        for (int iteration = 0; iteration < 4; iteration++) {
+            int rc = seL4_ARCH_Page_Unmap(frame_c);
+            printf("PAGEMAP_RESULT repeat_stale_c_unmap_%d=%d\\n", iteration, rc);
+            printf("PAGEMAP_RESULT repeat_stale_c_read_%d=0x%lx\\n",
+                   iteration, (unsigned long)*word);
+        }
+        printf("PAGEMAP_STAGE S02D_REPEAT_COMPLETED\\n");
+
         /* Stale-cap consequence: A's old cap still records this VA. Check
          * whether invoking Page_Map on A reclaims it, then restore B.
          * This stays inside the same VSpace and uses owned frames only. */
