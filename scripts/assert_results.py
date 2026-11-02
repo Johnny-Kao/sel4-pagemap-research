@@ -11,6 +11,7 @@ import sys
 
 arch, filename = sys.argv[1:]
 log = pathlib.Path(filename).read_text(errors="replace")
+assert "Test suite passed." in log, "suite did not complete"
 def value(key):
     found = re.search(r"PAGEMAP_RESULT\s+" + re.escape(key) + r"=([^\\\s]+)", log)
     if found is None:
@@ -18,6 +19,8 @@ def value(key):
     return found.group(1)
 
 assert "Test PAGEMAP0001 passed" in log, "sel4test probe not complete"
+assert log.count("Running test PAGEMAP0001 ") == 1, "unexpected repeated or absent probe"
+assert log.count("PAGEMAP_RESULT map_a=") == 1, "ambiguous or missing probe record"
 assert value("map_a") == "0"
 if arch == "riscv64":
     assert value("map_b_occupied") == "8", "Expected DeleteFirst"
@@ -44,7 +47,7 @@ else:
         assert actual == expected, f"{key}: got {actual}, expected {expected}"
     if arch == "aarch64":
         rc = value("stale_a_clean_data")
-        assert rc in ("0", "2", "3", "4", "5", "6", "7", "8"), "Unknown cache-clean response"
+        assert rc == "2", "Expected seL4_InvalidCapability for stale A cap on tested ARM EL1"
         assert value("b_after_stale_a_clean") == "0x6b4d2e8c", "Replacement frame unexpectedly changed"
         print("cache_clean_result=" + rc + " (report architecture config; not a vulnerability verdict)")
 print("VERDICT: OBSERVED_EXPECTED_TEST_MATRIX arch=" + arch)
