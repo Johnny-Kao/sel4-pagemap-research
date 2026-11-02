@@ -52,10 +52,13 @@ else:
         "remap_a_original": "0",
         "a_after_b_unmap": "0x5a3c1d7b",
     }
+    for i in range(4):
+        required[f"repeat_stale_c_unmap_{i}"] = "0"
+        required[f"repeat_stale_c_read_{i}"] = "0x6b4d2e8c"
     for key, expected in required.items():
         actual = value(key)
         assert actual == expected, f"{key}: got {actual}, expected {expected}"
-    stages = ["S00_BEGIN", "S01_BEFORE_COLLISION", "S02_AFTER_COLLISION_RC", "S02A_BEFORE_C_COLLISION", "S02B_BEFORE_B_RESTORE", "S02C_CHAIN_COMPLETED", "S03_BEFORE_STALE_UNMAP", "S04_AFTER_STALE_UNMAP_OBSERVATION", "S05_BEFORE_B_REMAP", "S06_BEFORE_B_UNMAP", "S99_COMPLETED"]
+    stages = ["S00_BEGIN", "S01_BEFORE_COLLISION", "S02_AFTER_COLLISION_RC", "S02A_BEFORE_C_COLLISION", "S02B_BEFORE_B_RESTORE", "S02C_CHAIN_COMPLETED", "S02D_REPEAT_COMPLETED", "S03_BEFORE_STALE_UNMAP", "S04_AFTER_STALE_UNMAP_OBSERVATION", "S05_BEFORE_B_REMAP", "S06_BEFORE_B_UNMAP", "S99_COMPLETED"]
     offsets = [log.index("PAGEMAP_STAGE " + marker) for marker in stages]
     assert offsets == sorted(offsets), "probe stages out of order"
     if arch == "aarch64":
