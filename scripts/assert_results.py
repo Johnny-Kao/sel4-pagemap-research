@@ -29,6 +29,14 @@ else:
     required = {
         "map_b_occupied": "0",
         "collision_read": "0x6b4d2e8c",
+        "map_c_occupied": "0",
+        "c_after_second_collision": "0x3c7a29b5",
+        "stale_unmap_b": "0",
+        "c_immediately_after_stale_unmap_b": "0x3c7a29b5",
+        "map_b_after_c": "0",
+        "b_after_c_restore": "0x6b4d2e8c",
+        "stale_unmap_c": "0",
+        "b_immediately_after_stale_unmap_c": "0x6b4d2e8c",
         "stale_a_map_same_va": "0",
         "stale_a_map_read": "0x5a3c1d7b",
         "restore_b_after_stale_a": "0",
@@ -47,7 +55,7 @@ else:
     for key, expected in required.items():
         actual = value(key)
         assert actual == expected, f"{key}: got {actual}, expected {expected}"
-    stages = ["S00_BEGIN", "S01_BEFORE_COLLISION", "S02_AFTER_COLLISION_RC", "S03_BEFORE_STALE_UNMAP", "S04_AFTER_STALE_UNMAP_OBSERVATION", "S05_BEFORE_B_REMAP", "S06_BEFORE_B_UNMAP", "S99_COMPLETED"]
+    stages = ["S00_BEGIN", "S01_BEFORE_COLLISION", "S02_AFTER_COLLISION_RC", "S02A_BEFORE_C_COLLISION", "S02B_BEFORE_B_RESTORE", "S02C_CHAIN_COMPLETED", "S03_BEFORE_STALE_UNMAP", "S04_AFTER_STALE_UNMAP_OBSERVATION", "S05_BEFORE_B_REMAP", "S06_BEFORE_B_UNMAP", "S99_COMPLETED"]
     offsets = [log.index("PAGEMAP_STAGE " + marker) for marker in stages]
     assert offsets == sorted(offsets), "probe stages out of order"
     if arch == "aarch64":
