@@ -72,6 +72,10 @@ else:
         "b_after_stale_a_unmap": "0x6b4d2e8c",
         "unmap_b": "0",
         "remap_a_original": "0",
+        "read_only_same_va_rc": "0",
+        "read_only_same_va_read": "0x5a3c1d7b",
+        "restore_rights_rc": "0",
+        "restore_rights_read": "0x5a3c1d7b",
         "a_after_b_unmap": "0x5a3c1d7b",
     }
     assert value("revoked_b_unmap") != "0", "Revoked child B unexpectedly callable"
@@ -82,7 +86,7 @@ else:
     for key, expected in required.items():
         actual = value(key)
         assert actual == expected, f"{key}: got {actual}, expected {expected}"
-    stages = ["S00_BEGIN", "S01_BEFORE_COLLISION", "S02_AFTER_COLLISION_RC", "S02A_BEFORE_C_COLLISION", "S02B_BEFORE_B_RESTORE", "S02C_CHAIN_COMPLETED", "S02D_REPEAT_COMPLETED", "S02E_REVOKE_COMPLETED", "S02F_DELETE_COMPLETED", "S02G_NEW_FRAME_CONTROL_COMPLETED", "S03_BEFORE_STALE_UNMAP", "S04_AFTER_STALE_UNMAP_OBSERVATION", "S04B_ACTIVE_REVOKE_COMPLETED", "S05_BEFORE_B_REMAP", "S06_BEFORE_B_UNMAP", "S99_COMPLETED"]
+    stages = ["S00_BEGIN", "S01_BEFORE_COLLISION", "S02_AFTER_COLLISION_RC", "S02A_BEFORE_C_COLLISION", "S02B_BEFORE_B_RESTORE", "S02C_CHAIN_COMPLETED", "S02D_REPEAT_COMPLETED", "S02E_REVOKE_COMPLETED", "S02F_DELETE_COMPLETED", "S02G_NEW_FRAME_CONTROL_COMPLETED", "S03_BEFORE_STALE_UNMAP", "S04_AFTER_STALE_UNMAP_OBSERVATION", "S04B_ACTIVE_REVOKE_COMPLETED", "S05_BEFORE_B_REMAP", "S06_BEFORE_B_UNMAP", "S07_RIGHTS_TRANSITION_COMPLETED", "S99_COMPLETED"]
     offsets = [log.index("PAGEMAP_STAGE " + marker) for marker in stages]
     assert offsets == sorted(offsets), "probe stages out of order"
     if arch == "aarch64":
@@ -106,3 +110,5 @@ print("CASE_ARM_CACHE_CLEAN=" + ("OBSERVED_REJECTED" if arch == "aarch64" else "
 for case in ("AUTH_1_CROSS_DOMAIN", "AUTH_2_EFFECTIVE_RIGHTS", "LIFE_1_REVOKE",
              "LIFE_2_FRAME_REUSE", "PREEMPT_1", "CACHE_1_EL2"):
     print("CASE_" + case + "=NOT_TESTED")
+
+print("CASE_F1_RIGHTS_TRANSITION=OBSERVED_READABILITY_ONLY_NO_FORBIDDEN_WRITE_TEST")
