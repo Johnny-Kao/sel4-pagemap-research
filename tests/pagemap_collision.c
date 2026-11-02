@@ -224,6 +224,35 @@ static int test_pagemap_collision_isolated(env_t env)
 
         /* B must still allow a same-VA attribute update: the mapping-cap
          * relationship should remain coherent until B's own unmap. */
+        /* Compare derived-cap revocation on an ACTIVE mapped frame B,
+         * not only on displaced C. This must not revoke the original B cap. */
+        cspacepath_t original_b_path, derived_b_path;
+        vka_cspace_make_path(&env->vka, frame_b, &original_b_path);
+        int derived_b_alloc = vka_cspace_alloc_path(&env->vka, &derived_b_path);
+        printf("PAGEMAP_RESULT derived_b_slot_alloc=%d\\n", derived_b_alloc);
+        test_error_eq(derived_b_alloc, seL4_NoError);
+        if (derived_b_alloc == seL4_NoError) {
+            int derived_b_copy = seL4_CNode_Copy(
+                derived_b_path.root, derived_b_path.capPtr, derived_b_path.capDepth,
+                original_b_path.root, original_b_path.capPtr, original_b_path.capDepth,
+                seL4_AllRights);
+            printf("PAGEMAP_RESULT derived_b_copy=%d\\n", derived_b_copy);
+            test_error_eq(derived_b_copy, seL4_NoError);
+            if (derived_b_copy == seL4_NoError) {
+                int revoke_derived_b = seL4_CNode_Revoke(
+                    original_b_path.root, original_b_path.capPtr, original_b_path.capDepth);
+                printf("PAGEMAP_RESULT revoke_derived_b=%d\\n", revoke_derived_b);
+                test_error_eq(revoke_derived_b, seL4_NoError);
+                printf("PAGEMAP_RESULT active_b_after_derived_revoke=0x%lx\\n",
+                       (unsigned long)*word);
+                test_assert(*word == (seL4_Word)0x6b4d2e8c);
+                int revoked_b_unmap = seL4_ARCH_Page_Unmap(derived_b_path.capPtr);
+                printf("PAGEMAP_RESULT revoked_b_unmap=%d\\n", revoked_b_unmap);
+                test_assert(revoked_b_unmap != seL4_NoError);
+            }
+        }
+        printf("PAGEMAP_STAGE S04B_ACTIVE_REVOKE_COMPLETED\\n");
+
         printf("PAGEMAP_STAGE S05_BEFORE_B_REMAP\\n");
         int remap_b_same = seL4_ARCH_Page_Map(
             frame_b, env->page_directory, (seL4_Word)va,
