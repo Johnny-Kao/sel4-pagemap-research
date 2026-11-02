@@ -1,10 +1,6 @@
 name: seL4 Page_Map isolated probe
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "tests/**"
-      - ".github/workflows/validate.yml"
 
 jobs:
   probe:
@@ -23,6 +19,9 @@ jobs:
             extra: "-DRISCV64=TRUE"
     runs-on: ubuntu-24.04
     timeout-minutes: 55
+    concurrency:
+      group: sel4-batched-${{ matrix.arch }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - name: Install host prerequisites
@@ -49,7 +48,7 @@ jobs:
             echo "platform=${{ matrix.platform }}"
             echo "extra=${{ matrix.extra }}"
             echo "kernel_sha=$(git -C upstream/kernel rev-parse HEAD)"
-            echo "sel4test_sha=$(git -C upstream/projects/sel4test/apps/sel4test-tests rev-parse HEAD)"
+            echo "sel4test_sha=$(git -C upstream/projects/sel4test rev-parse HEAD)"
             echo "manifest_sha=$(git -C upstream/.repo/manifests rev-parse HEAD)"
           } | tee results/build-info.txt
           cat tests/pagemap_collision.c >> upstream/projects/sel4test/apps/sel4test-tests/src/tests/frames.c
@@ -71,10 +70,13 @@ jobs:
           code=${PIPESTATUS[0]}
           set -e
           echo "simulation_exit=$code" >> ../../results/build-info.txt
-          if ! grep -q 'PAGEMAP_RESULT map_b_occupied=' ../../results/serial.log; then
-            echo "Probe not observed; simulation unsupported, failed, or timed out before test." >&2
-            exit 1
-          fi
+          python3 ../../scripts/assert_results.py "${{ matrix.arch }}" ../../results/serial.log | tee ../../results/verdict.txt
+      - name: Static source-path audit
+        if: always()
+        shell: bash
+        run: |
+          python3 scripts/static_audit.py upstream/kernel "${{ matrix.arch }}" > results/static-audit.txt
+          cat results/static-audit.txt
       - name: Upload artifacts even on failure
         if: always()
         uses: actions/upload-artifact@v4
