@@ -127,6 +127,20 @@ static int test_pagemap_collision_isolated(env_t env)
         }
         printf("PAGEMAP_STAGE S02D_REPEAT_COMPLETED\\n");
 
+        /* LIFE-1 partial: delete final C cap after B replaces its mapping.
+         * B must remain mapped immediately afterwards. */
+        cspacepath_t displaced_c_path;
+        vka_cspace_make_path(&env->vka, frame_c, &displaced_c_path);
+        int delete_displaced_c = seL4_CNode_Delete(
+            displaced_c_path.root, displaced_c_path.capPtr,
+            displaced_c_path.capDepth);
+        printf("PAGEMAP_RESULT delete_displaced_c=%d\\n", delete_displaced_c);
+        printf("PAGEMAP_RESULT b_after_displaced_c_delete=0x%lx\\n",
+               (unsigned long)*word);
+        test_error_eq(delete_displaced_c, seL4_NoError);
+        test_assert(*word == (seL4_Word)0x6b4d2e8c);
+        printf("PAGEMAP_STAGE S02E_DELETE_COMPLETED\\n");
+
         /* Stale-cap consequence: A's old cap still records this VA. Check
          * whether invoking Page_Map on A reclaims it, then restore B.
          * This stays inside the same VSpace and uses owned frames only. */
