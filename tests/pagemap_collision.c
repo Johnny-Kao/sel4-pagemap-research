@@ -46,6 +46,16 @@ static int test_pagemap_collision_isolated(env_t env)
         seL4_Word actual = *word;
         printf("PAGEMAP_RESULT collision_read=0x%lx expected_a=0x%lx expected_b=0x%lx\\n",
                (unsigned long)actual, (unsigned long)marker, (unsigned long)0x6b4d2e8c);
+#if defined(CONFIG_ARCH_AARCH64)
+        /* Non-destructive cache-maintenance request through A's stale cap.
+         * Classify EL1 rejection versus EL2 physical-address handling.
+         * Clean is chosen instead of invalidate to avoid discarding data. */
+        int stale_a_clean = seL4_ARM_Page_Clean_Data(frame_a, 0, 64);
+        printf("PAGEMAP_RESULT stale_a_clean_data=%d\\n", stale_a_clean);
+        printf("PAGEMAP_RESULT b_after_stale_a_clean=0x%lx\\n",
+               (unsigned long)*word);
+#endif
+
         /* Stale-cap consequence: A's old cap still records this VA. Check
          * whether invoking Page_Map on A reclaims it, then restore B.
          * This stays inside the same VSpace and uses owned frames only. */
