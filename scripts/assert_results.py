@@ -11,6 +11,11 @@ import sys
 
 arch, filename = sys.argv[1:]
 log = pathlib.Path(filename).read_text(errors="replace")
+# The test harness prints literal backslash-n delimiters. Concurrent seL4 kernel
+# diagnostics may splice into a printf token; remove only the known diagnostic
+# envelopes before validating all individual observations.
+log = re.sub(r"\\x1b\\[[0-9;]*m", "", log)
+log = re.sub(r"<<seL4\\(CPU \\d+\\).*?>>", "", log, flags=re.DOTALL)
 assert "Test suite passed." in log, "suite did not complete"
 assert "PAGEMAP_STAGE S99_COMPLETED" in log, "probe did not reach final state"
 def value(key):
