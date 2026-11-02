@@ -28,3 +28,12 @@ Follow-up calls show that unmapping the prior frame A does not visibly disrupt B
 
 ## Upstream
 No upstream source modified, no fork, no issue/PR, and no maintainer contact.
+
+## Third-stage stale-cap re-entry (2026-11-02)
+
+Run: https://github.com/Johnny-Kao/sel4-pagemap-research/actions/runs/41417918469
+
+On both AArch64 and x86_64, after Frame B overwrote Frame A at the same VA, invoking `Page_Map(Frame A, same VA)` again returned 0 and the VA read Frame A's original marker `0x5a3c1d7b`. Restoring B with `Page_Map(Frame B, same VA)` also returned 0 and the VA read B's marker `0x6b4d2e8c`. Subsequent unmap/remap operations passed. RISC-V rejected the initial B collision with `seL4_DeleteFirst (8)`.
+
+This confirms stale cap mapping metadata can be used to re-enter the mapping path and replace a currently valid PTE in these same-VSpace, two-frame tests. It does **not** establish an unauthorized cross-domain capability transfer, a bypass of the need to possess the frame cap and VSpace cap, or an isolation breach. Security severity remains unassigned; the contract/correctness defect is confirmed.
+
