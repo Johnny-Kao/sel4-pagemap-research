@@ -46,6 +46,26 @@ static int test_pagemap_collision_isolated(env_t env)
         seL4_Word actual = *word;
         printf("PAGEMAP_RESULT collision_read=0x%lx expected_a=0x%lx expected_b=0x%lx\\n",
                (unsigned long)actual, (unsigned long)marker, (unsigned long)0x6b4d2e8c);
+        /* Stale-cap consequence: A's old cap still records this VA. Check
+         * whether invoking Page_Map on A reclaims it, then restore B.
+         * This stays inside the same VSpace and uses owned frames only. */
+        int remap_stale_a = seL4_ARCH_Page_Map(
+            frame_a, env->page_directory, (seL4_Word)va,
+            seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+        printf("PAGEMAP_RESULT stale_a_map_same_va=%d\\n", remap_stale_a);
+        if (remap_stale_a == seL4_NoError) {
+            printf("PAGEMAP_RESULT stale_a_map_read=0x%lx\\n",
+                   (unsigned long)*word);
+            int restore_b = seL4_ARCH_Page_Map(
+                frame_b, env->page_directory, (seL4_Word)va,
+                seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+            printf("PAGEMAP_RESULT restore_b_after_stale_a=%d\\n", restore_b);
+            if (restore_b == seL4_NoError) {
+                printf("PAGEMAP_RESULT restored_b_read=0x%lx\\n",
+                       (unsigned long)*word);
+            }
+        }
+
         /* An obsolete Frame A cap must not be able to change Frame B's mapping.
          * Keep all follow-up accesses guarded by successful Page_Map calls.
          * A direct post-unmap VA read is intentionally omitted: a failed
