@@ -169,6 +169,30 @@ static int test_pagemap_collision_isolated(env_t env)
         test_error_eq(delete_displaced_c, seL4_NoError);
         test_assert(*word == (seL4_Word)0x6b4d2e8c);
         printf("PAGEMAP_STAGE S02F_DELETE_COMPLETED\\n");
+        /* Post-deletion allocation control: allocate independent frame D and
+         * confirm writes to D do not corrupt active B. This does NOT prove
+         * physical reuse of C; do not report it as a reuse test. */
+        seL4_CPtr frame_d = vka_alloc_frame_leaky(&env->vka, seL4_PageBits);
+        test_assert(frame_d != 0);
+        if (frame_d != 0) {
+            uintptr_t cookie_d = 0;
+            void *temp_d = vspace_map_pages(
+                &env->vspace, &frame_d, &cookie_d,
+                seL4_AllRights, 1, seL4_PageBits, 1);
+            test_assert(temp_d != NULL);
+            if (temp_d != NULL) {
+                *(volatile seL4_Word *)temp_d = (seL4_Word)0x4d2b18a6;
+                printf("PAGEMAP_RESULT new_d_content=0x%lx\\n",
+                       (unsigned long)*(volatile seL4_Word *)temp_d);
+                printf("PAGEMAP_RESULT active_b_after_d_write=0x%lx\\n",
+                       (unsigned long)*word);
+                test_assert(*word == (seL4_Word)0x6b4d2e8c);
+                vspace_unmap_pages(&env->vspace, temp_d, 1,
+                                   seL4_PageBits, VSPACE_PRESERVE);
+            }
+        }
+        printf("PAGEMAP_STAGE S02G_NEW_FRAME_CONTROL_COMPLETED\\n");
+
 
         /* Stale-cap consequence: A's old cap still records this VA. Check
          * whether invoking Page_Map on A reclaims it, then restore B.
