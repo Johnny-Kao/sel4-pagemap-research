@@ -16,6 +16,9 @@ log = pathlib.Path(filename).read_text(errors="replace")
 # envelopes before validating all individual observations.
 log = re.sub(r"\\x1b\\[[0-9;]*m", "", log)
 log = re.sub(r"<<seL4\\(CPU \\d+\\).*?>>", "", log, flags=re.DOTALL)
+# Console warnings may split a single C printf over two GitHub log lines:
+# after removing the warning, remove the runner timestamp+newline boundary.
+log = re.sub(r"\\n\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z ", "", log)
 assert "Test suite passed." in log, "suite did not complete"
 assert "PAGEMAP_STAGE S99_COMPLETED" in log, "probe did not reach final state"
 def value(key):
