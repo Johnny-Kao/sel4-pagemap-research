@@ -1,0 +1,35 @@
+name: Device region alignment (research)
+
+on:
+  push:
+    branches:
+      - research/device-region-alignment
+  workflow_dispatch:
+
+jobs:
+  baseline-and-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned upstream seL4 source
+        uses: actions/checkout@v4
+        with:
+          repository: seL4/seL4
+          ref: 15ec7bf82864e0505dc682051c0d688a946f5ece
+          path: upstream
+      - name: Reproduce original failure (expected)
+        shell: bash
+        run: |
+          set +e
+          PYTHONPATH=upstream/tools python3 tests/test_device_region_alignment.py > baseline.log 2>&1
+          rc=$?
+          set -e
+          cat baseline.log
+          test "$rc" -ne 0
+          grep -q 'FAILED (failures=' baseline.log
+          grep -q 'test_reserved_device_cover' baseline.log
+      - name: Apply minimal candidate in disposable upstream checkout
+        run: python3 scripts/apply_device_alignment_candidate.py upstream/tools/hardware/memory.py
+      - name: Verify corrected behavior
+        run: PYTHONPATH=upstream/tools python3 tests/test_device_region_alignment.py
