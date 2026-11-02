@@ -49,10 +49,10 @@ jobs:
             echo "platform=${{ matrix.platform }}"
             echo "extra=${{ matrix.extra }}"
             echo "kernel_sha=$(git -C upstream/kernel rev-parse HEAD)"
-            echo "sel4test_sha=$(git -C upstream/apps/sel4test-tests rev-parse HEAD)"
+            echo "sel4test_sha=$(git -C upstream/projects/sel4test/apps/sel4test-tests rev-parse HEAD)"
             echo "manifest_sha=$(git -C upstream/.repo/manifests rev-parse HEAD)"
           } | tee results/build-info.txt
-          cat tests/pagemap_collision.c >> upstream/apps/sel4test-tests/src/tests/frames.c
+          cat tests/pagemap_collision.c >> upstream/projects/sel4test/apps/sel4test-tests/src/tests/frames.c
       - name: Configure and build
         shell: bash
         run: |
