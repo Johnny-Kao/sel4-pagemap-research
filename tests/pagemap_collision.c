@@ -50,6 +50,17 @@ static int test_pagemap_collision_isolated(env_t env)
     *(volatile seL4_Word *)temp_c = (seL4_Word)0x3c7a29b5;
     vspace_unmap_pages(&env->vspace, temp_c, 1, seL4_PageBits, VSPACE_PRESERVE);
 
+    /* AUTH-NEG: A deliberately invalid VSpace cap must not authorize a map.
+     * Verify the existing A mapping immediately, before the collision. */
+    int unauthorized_map = seL4_ARCH_Page_Map(
+        frame_b, frame_a, (seL4_Word)va,
+        seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+    printf("PAGEMAP_RESULT auth_invalid_vspace_rc=%d\\n", unauthorized_map);
+    printf("PAGEMAP_RESULT auth_invalid_vspace_a_read=0x%lx\\n",
+           (unsigned long)*word);
+    test_assert(unauthorized_map != seL4_NoError);
+    test_assert(*word == marker);
+
     printf("PAGEMAP_STAGE S01_BEFORE_COLLISION\\n");
     int map_b = seL4_ARCH_Page_Map(
         frame_b, env->page_directory, (seL4_Word)va,
