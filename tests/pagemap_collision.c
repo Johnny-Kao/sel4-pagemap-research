@@ -46,11 +46,56 @@ static int test_pagemap_collision_isolated(env_t env)
         seL4_Word actual = *word;
         printf("PAGEMAP_RESULT collision_read=0x%lx expected_a=0x%lx expected_b=0x%lx\\n",
                (unsigned long)actual, (unsigned long)marker, (unsigned long)0x6b4d2e8c);
+        /* An obsolete Frame A cap must not be able to change Frame B's mapping.
+         * Keep all follow-up accesses guarded by successful Page_Map calls.
+         * A direct post-unmap VA read is intentionally omitted: a failed
+         * mapping would otherwise cause an unhandled VM fault. */
         int unmap_a = seL4_ARCH_Page_Unmap(frame_a);
         printf("PAGEMAP_RESULT unmap_a=%d\\n", unmap_a);
+
+        /* If A's metadata was cleared, it must be reusable elsewhere. */
+        void *a_elsewhere = NULL;
+        reservation_t reserve_a = vspace_reserve_range_aligned(
+            &env->vspace, BIT(seL4_PageBits), seL4_PageBits,
+            seL4_AllRights, 1, &a_elsewhere);
+        test_assert(reserve_a.res && a_elsewhere != NULL);
+        if (reserve_a.res && a_elsewhere != NULL) {
+            int remap_a_elsewhere = seL4_ARCH_Page_Map(
+                frame_a, env->page_directory, (seL4_Word)a_elsewhere,
+                seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+            printf("PAGEMAP_RESULT remap_a_elsewhere=%d\\n", remap_a_elsewhere);
+            if (remap_a_elsewhere == seL4_NoError) {
+                seL4_Word a_read = *(volatile seL4_Word *)a_elsewhere;
+                printf("PAGEMAP_RESULT remap_a_content=0x%lx\\n",
+                       (unsigned long)a_read);
+                int unmap_a_elsewhere = seL4_ARCH_Page_Unmap(frame_a);
+                printf("PAGEMAP_RESULT unmap_a_elsewhere=%d\\n", unmap_a_elsewhere);
+            }
+        }
+
+        /* B must still allow a same-VA attribute update: the mapping-cap
+         * relationship should remain coherent until B's own unmap. */
+        int remap_b_same = seL4_ARCH_Page_Map(
+            frame_b, env->page_directory, (seL4_Word)va,
+            seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+        printf("PAGEMAP_RESULT remap_b_same_va=%d\\n", remap_b_same);
+        if (remap_b_same == seL4_NoError) {
+            printf("PAGEMAP_RESULT b_after_stale_a_unmap=0x%lx\\n",
+                   (unsigned long)*word);
+        }
+
         int unmap_b = seL4_ARCH_Page_Unmap(frame_b);
         printf("PAGEMAP_RESULT unmap_b=%d\\n", unmap_b);
-        /* Never dereference VA after unmapping: avoid inducing a VM fault. */
+        /* An explicitly unmapped B should leave the VA available. */
+        int remap_a_original = seL4_ARCH_Page_Map(
+            frame_a, env->page_directory, (seL4_Word)va,
+            seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+        printf("PAGEMAP_RESULT remap_a_original=%d\\n", remap_a_original);
+        if (remap_a_original == seL4_NoError) {
+            printf("PAGEMAP_RESULT a_after_b_unmap=0x%lx\\n",
+                   (unsigned long)*word);
+            seL4_ARCH_Page_Unmap(frame_a);
+        }
     } else {
         printf("PAGEMAP_RESULT rejected_without_further_unmap_probe=1\\n");
     }
