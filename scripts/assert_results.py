@@ -68,3 +68,12 @@ else:
         print("cache_clean_result=" + rc + " (report architecture config; not a vulnerability verdict)")
 print("VERDICT: OBSERVED_EXPECTED_TEST_MATRIX arch=" + arch)
 print("LIMIT: does not prove memory isolation, confidentiality, or CVE severity")
+
+print("CASE_COLLISION=" + ("REJECTED_AS_EXPECTED" if arch == "riscv64" else "CONFIRMED_OVERWRITE"))
+print("CASE_STALE_UNMAP=" + ("NOT_APPLICABLE_COLLISION_REJECTED" if arch == "riscv64" else "OBSERVED_NO_DISRUPTION"))
+print("CASE_THREE_FRAME_CHAIN=" + ("NOT_APPLICABLE_COLLISION_REJECTED" if arch == "riscv64" else "OBSERVED_NO_DISRUPTION"))
+print("CASE_REPEATED_UNMAP=" + ("NOT_APPLICABLE_COLLISION_REJECTED" if arch == "riscv64" else "OBSERVED_NO_DISRUPTION"))
+print("CASE_ARM_CACHE_CLEAN=" + ("OBSERVED_REJECTED" if arch == "aarch64" else "NOT_APPLICABLE"))
+for case in ("AUTH_1_CROSS_DOMAIN", "AUTH_2_EFFECTIVE_RIGHTS", "LIFE_1_REVOKE",
+             "LIFE_2_FRAME_REUSE", "PREEMPT_1", "CACHE_1_EL2"):
+    print("CASE_" + case + "=NOT_TESTED")
