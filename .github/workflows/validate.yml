@@ -71,10 +71,14 @@ jobs:
           code=${PIPESTATUS[0]}
           set -e
           echo "simulation_exit=$code" >> ../../results/build-info.txt
-          if [ "$code" -ne 0 ]; then
-            echo "Non-zero simulator exit code: $code" >&2
-            echo "INCOMPLETE: simulator did not exit cleanly" | tee ../../results/verdict.txt
+          # QEMU can keep running after sel4test reports the completed suite;
+          # timeout(124) is acceptable only with a complete, strict log verdict.
+          if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+            echo "INCOMPLETE: unexpected simulator exit code: $code" | tee ../../results/verdict.txt
             exit 1
+          fi
+          if [ "$code" -eq 124 ]; then
+            echo "Simulator reached timeout after launching; validating suite completion strictly." >&2
           fi
           python3 ../../scripts/assert_results.py "${{ matrix.arch }}" ../../results/serial.log | tee ../../results/verdict.txt
       - name: Static source-path audit
