@@ -1,6 +1,7 @@
 /* Isolated sel4test collision probe. Append to frames.c inside disposable CI checkout. */
 static int test_pagemap_collision_isolated(env_t env)
 {
+    printf("PAGEMAP_STAGE S00_BEGIN\\n");
     seL4_CPtr frame_a = vka_alloc_frame_leaky(&env->vka, seL4_PageBits);
     seL4_CPtr frame_b = vka_alloc_frame_leaky(&env->vka, seL4_PageBits);
     test_assert(frame_a && frame_b);
@@ -36,12 +37,14 @@ static int test_pagemap_collision_isolated(env_t env)
     *(volatile seL4_Word *)temp_b = (seL4_Word)0x6b4d2e8c;
     vspace_unmap_pages(&env->vspace, temp_b, 1, seL4_PageBits, VSPACE_PRESERVE);
 
+    printf("PAGEMAP_STAGE S01_BEFORE_COLLISION\\n");
     int map_b = seL4_ARCH_Page_Map(
         frame_b, env->page_directory, (seL4_Word)va,
         seL4_AllRights, seL4_ARCH_Default_VMAttributes);
     printf("PAGEMAP_RESULT map_b_occupied=%d expected_delete_first=%d\\n",
            map_b, seL4_DeleteFirst);
 
+    printf("PAGEMAP_STAGE S02_AFTER_COLLISION_RC\\n");
     if (map_b == seL4_NoError) {
         seL4_Word actual = *word;
         printf("PAGEMAP_RESULT collision_read=0x%lx expected_a=0x%lx expected_b=0x%lx\\n",
@@ -80,8 +83,13 @@ static int test_pagemap_collision_isolated(env_t env)
          * Keep all follow-up accesses guarded by successful Page_Map calls.
          * A direct post-unmap VA read is intentionally omitted: a failed
          * mapping would otherwise cause an unhandled VM fault. */
+        printf("PAGEMAP_STAGE S03_BEFORE_STALE_UNMAP\\n");
         int unmap_a = seL4_ARCH_Page_Unmap(frame_a);
         printf("PAGEMAP_RESULT unmap_a=%d\\n", unmap_a);
+        /* Observe the existing mapping BEFORE any repair/remap operation. */
+        printf("PAGEMAP_RESULT b_immediately_after_stale_unmap=0x%lx\\n",
+               (unsigned long)*word);
+        printf("PAGEMAP_STAGE S04_AFTER_STALE_UNMAP_OBSERVATION\\n");
 
         /* If A's metadata was cleared, it must be reusable elsewhere. */
         void *a_elsewhere = NULL;
@@ -105,6 +113,7 @@ static int test_pagemap_collision_isolated(env_t env)
 
         /* B must still allow a same-VA attribute update: the mapping-cap
          * relationship should remain coherent until B's own unmap. */
+        printf("PAGEMAP_STAGE S05_BEFORE_B_REMAP\\n");
         int remap_b_same = seL4_ARCH_Page_Map(
             frame_b, env->page_directory, (seL4_Word)va,
             seL4_AllRights, seL4_ARCH_Default_VMAttributes);
@@ -114,6 +123,7 @@ static int test_pagemap_collision_isolated(env_t env)
                    (unsigned long)*word);
         }
 
+        printf("PAGEMAP_STAGE S06_BEFORE_B_UNMAP\\n");
         int unmap_b = seL4_ARCH_Page_Unmap(frame_b);
         printf("PAGEMAP_RESULT unmap_b=%d\\n", unmap_b);
         /* An explicitly unmapped B should leave the VA available. */
@@ -129,6 +139,7 @@ static int test_pagemap_collision_isolated(env_t env)
     } else {
         printf("PAGEMAP_RESULT rejected_without_further_unmap_probe=1\\n");
     }
+    printf("PAGEMAP_STAGE S99_COMPLETED\\n");
     return sel4test_get_result();
 }
 DEFINE_TEST(PAGEMAP0001, "Isolated occupied Page_Map collision probe",
