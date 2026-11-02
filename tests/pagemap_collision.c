@@ -127,6 +127,35 @@ static int test_pagemap_collision_isolated(env_t env)
         }
         printf("PAGEMAP_STAGE S02D_REPEAT_COMPLETED\\n");
 
+        /* LIFE-1 derived-cap lifecycle: revoke a child of the displaced C
+         * capability and independently verify the still-active B frame. */
+        cspacepath_t original_c_path, derived_c_path;
+        vka_cspace_make_path(&env->vka, frame_c, &original_c_path);
+        int derived_alloc = vka_cspace_alloc_path(&env->vka, &derived_c_path);
+        printf("PAGEMAP_RESULT derived_c_slot_alloc=%d\\n", derived_alloc);
+        test_error_eq(derived_alloc, seL4_NoError);
+        if (derived_alloc == seL4_NoError) {
+            int derived_copy = seL4_CNode_Copy(
+                derived_c_path.root, derived_c_path.capPtr, derived_c_path.capDepth,
+                original_c_path.root, original_c_path.capPtr, original_c_path.capDepth,
+                seL4_AllRights);
+            printf("PAGEMAP_RESULT derived_c_copy=%d\\n", derived_copy);
+            test_error_eq(derived_copy, seL4_NoError);
+            if (derived_copy == seL4_NoError) {
+                int revoke_derived_c = seL4_CNode_Revoke(
+                    original_c_path.root, original_c_path.capPtr, original_c_path.capDepth);
+                printf("PAGEMAP_RESULT revoke_derived_c=%d\\n", revoke_derived_c);
+                test_error_eq(revoke_derived_c, seL4_NoError);
+                printf("PAGEMAP_RESULT b_after_revoke_c=0x%lx\\n",
+                       (unsigned long)*word);
+                test_assert(*word == (seL4_Word)0x6b4d2e8c);
+                int revoked_cap_unmap = seL4_ARCH_Page_Unmap(derived_c_path.capPtr);
+                printf("PAGEMAP_RESULT revoked_c_unmap=%d\\n", revoked_cap_unmap);
+                test_assert(revoked_cap_unmap != seL4_NoError);
+            }
+        }
+        printf("PAGEMAP_STAGE S02E_REVOKE_COMPLETED\\n");
+
         /* LIFE-1 partial: delete final C cap after B replaces its mapping.
          * B must remain mapped immediately afterwards. */
         cspacepath_t displaced_c_path;
@@ -139,7 +168,7 @@ static int test_pagemap_collision_isolated(env_t env)
                (unsigned long)*word);
         test_error_eq(delete_displaced_c, seL4_NoError);
         test_assert(*word == (seL4_Word)0x6b4d2e8c);
-        printf("PAGEMAP_STAGE S02E_DELETE_COMPLETED\\n");
+        printf("PAGEMAP_STAGE S02F_DELETE_COMPLETED\\n");
 
         /* Stale-cap consequence: A's old cap still records this VA. Check
          * whether invoking Page_Map on A reclaims it, then restore B.
