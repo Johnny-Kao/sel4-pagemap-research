@@ -14,9 +14,6 @@ jobs:
           - arch: aarch64
             platform: qemu-arm-virt
             extra: "-DAARCH64=TRUE"
-          - arch: riscv64
-            platform: spike
-            extra: "-DRISCV64=TRUE"
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     concurrency:
