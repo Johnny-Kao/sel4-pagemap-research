@@ -23,6 +23,8 @@ assert "Test PAGEMAP0001 passed" in log, "sel4test probe not complete"
 assert log.count("Running test PAGEMAP0001 ") == 1, "unexpected repeated or absent probe"
 assert log.count("PAGEMAP_RESULT map_a=") == 1, "ambiguous or missing probe record"
 assert value("map_a") == "0"
+assert value("auth_invalid_vspace_rc") != "0", "Invalid VSpace cap unexpectedly authorized mapping"
+assert value("auth_invalid_vspace_a_read") == "0x5a3c1d7b", "Invalid mapping attempt changed owner contents"
 if arch == "riscv64":
     assert value("map_b_occupied") == "8", "Expected DeleteFirst"
 else:
@@ -69,6 +71,7 @@ else:
 print("VERDICT: OBSERVED_EXPECTED_TEST_MATRIX arch=" + arch)
 print("LIMIT: does not prove memory isolation, confidentiality, or CVE severity")
 
+print("CASE_AUTH_INVALID_VSPACE_NEGATIVE_CONTROL=OBSERVED_REJECTED")
 print("CASE_COLLISION=" + ("REJECTED_AS_EXPECTED" if arch == "riscv64" else "CONFIRMED_OVERWRITE"))
 print("CASE_STALE_UNMAP=" + ("NOT_APPLICABLE_COLLISION_REJECTED" if arch == "riscv64" else "OBSERVED_NO_DISRUPTION"))
 print("CASE_THREE_FRAME_CHAIN=" + ("NOT_APPLICABLE_COLLISION_REJECTED" if arch == "riscv64" else "OBSERVED_NO_DISRUPTION"))
