@@ -4,7 +4,8 @@ static int test_pagemap_collision_isolated(env_t env)
     printf("PAGEMAP_STAGE S00_BEGIN\\n");
     seL4_CPtr frame_a = vka_alloc_frame_leaky(&env->vka, seL4_PageBits);
     seL4_CPtr frame_b = vka_alloc_frame_leaky(&env->vka, seL4_PageBits);
-    test_assert(frame_a && frame_b);
+    seL4_CPtr frame_c = vka_alloc_frame_leaky(&env->vka, seL4_PageBits);
+    test_assert(frame_a && frame_b && frame_c);
 
     void *va = NULL;
     reservation_t reserved = vspace_reserve_range_aligned(
@@ -37,6 +38,18 @@ static int test_pagemap_collision_isolated(env_t env)
     *(volatile seL4_Word *)temp_b = (seL4_Word)0x6b4d2e8c;
     vspace_unmap_pages(&env->vspace, temp_b, 1, seL4_PageBits, VSPACE_PRESERVE);
 
+    /* Third independent frame: test a multi-frame stale-cap chain in one run. */
+    uintptr_t cookie_c = 0;
+    void *temp_c = vspace_map_pages(
+        &env->vspace, &frame_c, &cookie_c,
+        seL4_AllRights, 1, seL4_PageBits, 1);
+    test_assert(temp_c != NULL);
+    if (!temp_c) {
+        return sel4test_get_result();
+    }
+    *(volatile seL4_Word *)temp_c = (seL4_Word)0x3c7a29b5;
+    vspace_unmap_pages(&env->vspace, temp_c, 1, seL4_PageBits, VSPACE_PRESERVE);
+
     printf("PAGEMAP_STAGE S01_BEFORE_COLLISION\\n");
     int map_b = seL4_ARCH_Page_Map(
         frame_b, env->page_directory, (seL4_Word)va,
@@ -58,6 +71,41 @@ static int test_pagemap_collision_isolated(env_t env)
         printf("PAGEMAP_RESULT b_after_stale_a_clean=0x%lx\\n",
                (unsigned long)*word);
 #endif
+
+        /* Batch second collision: A -> B -> C, then stale-Unmap(B).
+         * Observe C immediately before restoring B, so a subsequent Map
+         * cannot mask an error. No unowned frames or cross-domain access. */
+        printf("PAGEMAP_STAGE S02A_BEFORE_C_COLLISION\\n");
+        int map_c_occupied = seL4_ARCH_Page_Map(
+            frame_c, env->page_directory, (seL4_Word)va,
+            seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+        printf("PAGEMAP_RESULT map_c_occupied=%d\\n", map_c_occupied);
+        test_error_eq(map_c_occupied, seL4_NoError);
+        if (map_c_occupied != seL4_NoError) {
+            return sel4test_get_result();
+        }
+        printf("PAGEMAP_RESULT c_after_second_collision=0x%lx\\n",
+               (unsigned long)*word);
+        int stale_unmap_b = seL4_ARCH_Page_Unmap(frame_b);
+        printf("PAGEMAP_RESULT stale_unmap_b=%d\\n", stale_unmap_b);
+        printf("PAGEMAP_RESULT c_immediately_after_stale_unmap_b=0x%lx\\n",
+               (unsigned long)*word);
+        printf("PAGEMAP_STAGE S02B_BEFORE_B_RESTORE\\n");
+        int map_b_after_c = seL4_ARCH_Page_Map(
+            frame_b, env->page_directory, (seL4_Word)va,
+            seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+        printf("PAGEMAP_RESULT map_b_after_c=%d\\n", map_b_after_c);
+        test_error_eq(map_b_after_c, seL4_NoError);
+        if (map_b_after_c != seL4_NoError) {
+            return sel4test_get_result();
+        }
+        printf("PAGEMAP_RESULT b_after_c_restore=0x%lx\\n",
+               (unsigned long)*word);
+        int stale_unmap_c = seL4_ARCH_Page_Unmap(frame_c);
+        printf("PAGEMAP_RESULT stale_unmap_c=%d\\n", stale_unmap_c);
+        printf("PAGEMAP_RESULT b_immediately_after_stale_unmap_c=0x%lx\\n",
+               (unsigned long)*word);
+        printf("PAGEMAP_STAGE S02C_CHAIN_COMPLETED\\n");
 
         /* Stale-cap consequence: A's old cap still records this VA. Check
          * whether invoking Page_Map on A reclaims it, then restore B.
