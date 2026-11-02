@@ -194,6 +194,31 @@ static int test_pagemap_collision_isolated(env_t env)
         printf("PAGEMAP_STAGE S02G_NEW_FRAME_CONTROL_COMPLETED\\n");
 
 
+        /* F3 precursor: a displaced cap with stale mapping metadata is
+         * asked to map to a DIFFERENT VA without a prior Unmap.
+         * Record whether the existing cap state permits a second location.
+         * This does not itself establish a cross-ASID security violation. */
+        void *stale_a_alt_va = NULL;
+        reservation_t stale_a_alt_res = vspace_reserve_range_aligned(
+            &env->vspace, BIT(seL4_PageBits), seL4_PageBits,
+            seL4_AllRights, 1, &stale_a_alt_va);
+        test_assert(stale_a_alt_res.res && stale_a_alt_va != NULL);
+        if (stale_a_alt_res.res && stale_a_alt_va != NULL) {
+            int stale_a_alt_map = seL4_ARCH_Page_Map(
+                frame_a, env->page_directory, (seL4_Word)stale_a_alt_va,
+                seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+            printf("PAGEMAP_RESULT stale_a_different_va_map=%d\\n", stale_a_alt_map);
+            if (stale_a_alt_map == seL4_NoError) {
+                printf("PAGEMAP_RESULT stale_a_different_va_read=0x%lx\\n",
+                       (unsigned long)*(volatile seL4_Word *)stale_a_alt_va);
+                seL4_ARCH_Page_Unmap(frame_a);
+            }
+            printf("PAGEMAP_RESULT b_after_stale_a_different_va=0x%lx\\n",
+                   (unsigned long)*word);
+            test_assert(*word == (seL4_Word)0x6b4d2e8c);
+        }
+        printf("PAGEMAP_STAGE S02H_ALT_VA_PROBED\\n");
+
         /* Stale-cap consequence: A's old cap still records this VA. Check
          * whether invoking Page_Map on A reclaims it, then restore B.
          * This stays inside the same VSpace and uses owned frames only. */
