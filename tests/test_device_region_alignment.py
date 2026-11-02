@@ -33,6 +33,15 @@ class RegionCoverage(unittest.TestCase):
                         self.assertEqual(aligned.base % (1 << bits), 0)
                         self.assertEqual(aligned.size % (1 << bits), 0)
 
+    def test_empty_and_aligned_regions(self):
+        for bits in (12, 14, 16):
+            for offset in (0, 1, 3, (1 << bits) - 1):
+                empty = Region((1 << bits) + offset, 0).align_size(bits)
+                self.assertEqual(empty.size, 0)
+                self.assertEqual(empty.base % (1 << bits), 0)
+                aligned = Region(1 << bits, 2 << bits).align_size(bits)
+                self.assertEqual((aligned.base, aligned.size), (1 << bits, 2 << bits))
+
     def test_reserved_device_cover(self):
         original = Region(0x1003, 0x1000)
         group = KernelRegionGroup(original, "TEST_DEVICE", 12, 0x1000)
