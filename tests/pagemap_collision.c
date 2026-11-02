@@ -298,6 +298,27 @@ static int test_pagemap_collision_isolated(env_t env)
         if (remap_a_original == seL4_NoError) {
             printf("PAGEMAP_RESULT a_after_b_unmap=0x%lx\\n",
                    (unsigned long)*word);
+            /* F1: rights-transition under the already-observed overwritten
+             * address, using only a frame and VSpace owned by this task.
+             * Readability and mapping return code are recorded. Actual
+             * forbidden-write enforcement needs a supervised fault test. */
+            int read_only_map = seL4_ARCH_Page_Map(
+                frame_a, env->page_directory, (seL4_Word)va,
+                seL4_CanRead, seL4_ARCH_Default_VMAttributes);
+            printf("PAGEMAP_RESULT read_only_same_va_rc=%d\\n", read_only_map);
+            if (read_only_map == seL4_NoError) {
+                printf("PAGEMAP_RESULT read_only_same_va_read=0x%lx\\n",
+                       (unsigned long)*word);
+            }
+            int restore_rights_map = seL4_ARCH_Page_Map(
+                frame_a, env->page_directory, (seL4_Word)va,
+                seL4_AllRights, seL4_ARCH_Default_VMAttributes);
+            printf("PAGEMAP_RESULT restore_rights_rc=%d\\n", restore_rights_map);
+            if (restore_rights_map == seL4_NoError) {
+                printf("PAGEMAP_RESULT restore_rights_read=0x%lx\\n",
+                       (unsigned long)*word);
+            }
+            printf("PAGEMAP_STAGE S07_RIGHTS_TRANSITION_COMPLETED\\n");
             seL4_ARCH_Page_Unmap(frame_a);
         }
     } else {
