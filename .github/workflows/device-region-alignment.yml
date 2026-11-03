@@ -33,3 +33,34 @@ jobs:
         run: python3 scripts/apply_device_alignment_candidate.py upstream/tools/hardware/memory.py
       - name: Verify corrected behavior
         run: PYTHONPATH=upstream/tools python3 tests/test_device_region_alignment.py
+
+      - name: Install platform generator dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq device-tree-compiler
+          python3 -m pip install --disable-pip-version-check pyfdt PyYAML Jinja2 jsonschema
+      - name: Compare actual seL4 platform generated headers
+        run: python3 scripts/compare_real_platform_headers.py upstream platform-results
+      - name: Summarize real-platform comparison
+        if: always()
+        run: |
+          if [ -f platform-results/summary.json ]; then
+            python3 - <<'PY'
+          import json
+          a=json.load(open('platform-results/summary.json'))
+          ok=[x for x in a if x['status']=='ok']
+          changed=[x for x in ok if x['changed']]
+          print('PLATFORM_GENERATION_OK',len(ok),'CHANGED',len(changed))
+          for x in changed: print(x['name'], x['diff_lines'], x['changed_lines'])
+          for x in a:
+              if x['status']!='ok': print('NOT_GENERATED',x['name'],x['status'],x.get('error','')[-120:])
+          PY
+          fi
+      - name: Save actual platform headers and diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-platform-header-comparison
+          path: platform-results/
+          if-no-files-found: warn
+          retention-days: 7
