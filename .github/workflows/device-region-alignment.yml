@@ -64,6 +64,16 @@ jobs:
           path: multi-output-results/
           if-no-files-found: warn
           retention-days: 7
+      - name: Inventory actually selected kernel-device DT regions
+        run: python3 scripts/inventory_selected_kernel_devices.py upstream selected-device-inventory
+      - name: Save selected kernel-device binding inputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selected-kernel-device-inventory
+          path: selected-device-inventory/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Save full-generator regression outputs
         if: always()
         uses: actions/upload-artifact@v4
