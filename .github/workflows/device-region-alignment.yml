@@ -43,6 +43,16 @@ jobs:
         run: git -C upstream restore tools/hardware/memory.py
       - name: Compare actual seL4 platform generated headers
         run: python3 scripts/compare_real_platform_headers.py upstream platform-results
+      - name: Exercise unaligned device through complete production generator
+        run: python3 scripts/test_full_generator_unaligned.py upstream unaligned-results
+      - name: Save full-generator regression outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-generator-unaligned-regression
+          path: unaligned-results/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Summarize real-platform comparison
         if: always()
         run: |
