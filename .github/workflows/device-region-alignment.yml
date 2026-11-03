@@ -37,6 +37,9 @@ jobs:
       - name: Exhaustive interval and mapping contract audit
         run: python3 scripts/audit_alignment_contract.py
 
+      - name: Compare minimal repair alternatives and caller contracts
+        run: python3 scripts/compare_minimal_repair_paths.py
+
       - name: Install platform generator dependencies
         run: |
           sudo apt-get update -qq
