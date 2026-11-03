@@ -112,7 +112,7 @@ try:
             ("mapped-cross-rejected",0x1003,0x1000,False,True),
             ("unaligned-short",0x1003,0x20,False,False),
             ("aligned-full",0x1000,0x1000,False,False),
-            ("start-near-boundary",0x1ff0,0x30,True,False),
+            ("start-near-boundary",0x1fe0,0x30,True,False),
         ]:
             source=tmp/(name+".dts");dtb=tmp/(name+".dtb")
             source.write_text(dts(b,size))
