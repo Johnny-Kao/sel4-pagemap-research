@@ -56,7 +56,11 @@ try:
         with TemporaryDirectory() as temp:
             temp = Path(temp)
             combined = temp / "combined.dts"
-            combined.write_text(source.read_text() + "\n" + overlays[0].read_text())
+            extra = (root / "src/plat/bcm2711/overlay-rpi4-8gb.dts") if name == "rpi4" else None
+            fragments = [source.read_text(), overlays[0].read_text()]
+            if extra:
+                fragments.append(extra.read_text())
+            combined.write_text("\n".join(fragments))
             dtb = temp / "combined.dtb"
             built = run(["dtc", "-q", "-I", "dts", "-O", "dtb", "-o", str(dtb), str(combined)])
             if built.returncode:
