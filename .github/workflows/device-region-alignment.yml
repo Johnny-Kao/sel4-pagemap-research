@@ -39,6 +39,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq device-tree-compiler
           python3 -m pip install --disable-pip-version-check pyfdt PyYAML Jinja2 jsonschema
+      - name: Restore pristine pinned upstream helper for A/B comparison
+        run: git -C upstream restore tools/hardware/memory.py
       - name: Compare actual seL4 platform generated headers
         run: python3 scripts/compare_real_platform_headers.py upstream platform-results
       - name: Summarize real-platform comparison
