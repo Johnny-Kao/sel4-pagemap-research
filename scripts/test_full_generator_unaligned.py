@@ -45,6 +45,7 @@ def dts(base,size):
   }};
   test-device@{base:x} {{
     compatible = "arm,pl310-cache";
+    cache-unified;
     reg = <0x0 {base:#x} 0x0 {size:#x}>;
   }};
 }};
