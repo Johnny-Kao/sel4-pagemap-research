@@ -43,6 +43,9 @@ jobs:
       - name: Verify 2019 kernel_size anchor and legacy schema mismatch
         run: python3 scripts/audit_historical_kernel_size_anchor.py
 
+      - name: Audit no-patch runtime-impact preconditions
+        run: python3 scripts/audit_no_patch_failure_modes.py
+
       - name: Install platform generator dependencies
         run: |
           sudo apt-get update -qq
