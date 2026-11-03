@@ -69,6 +69,7 @@ def dt_source(base, size):
  memory@80000000 {{ device_type = "memory"; reg = <0 0x80000000 0 0x02000000>; }};
  test-device@{base:x} {{
    compatible = "arm,pl310-cache";
+   cache-unified;
    reg = <0 {base:#x} 0 {size:#x}>;
  }};
 }};
