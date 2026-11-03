@@ -34,6 +34,9 @@ jobs:
       - name: Verify corrected behavior
         run: PYTHONPATH=upstream/tools python3 tests/test_device_region_alignment.py
 
+      - name: Exhaustive interval and mapping contract audit
+        run: python3 scripts/audit_alignment_contract.py
+
       - name: Install platform generator dependencies
         run: |
           sudo apt-get update -qq
