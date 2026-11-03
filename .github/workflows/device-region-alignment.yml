@@ -67,6 +67,16 @@ jobs:
           path: uboot-style-results/
           if-no-files-found: warn
           retention-days: 7
+      - name: Validate split legacy mapping and full-device reservation candidate
+        run: python3 scripts/test_split_mapping_reservation_candidate.py upstream split-contract-results
+      - name: Save split mapping/reservation research A/B
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: split-mapping-reservation-comparison
+          path: split-contract-results/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Verify mapped frames and reservation exclusion across C YAML JSON
         run: python3 scripts/test_multi_output_contract.py upstream multi-output-results
       - name: Save multi-output contract comparison
