@@ -53,3 +53,31 @@ Hence `kernel_size` controls a **byte count beginning at the raw/translated DT d
 - If all *actual supported* selected devices satisfy offset+size coverage by coincidence, the concern remains a latent contract error, not confirmed deployed breakage. Reviewer issue-first request is justified; do not submit a replacement PR until the scope is demonstrated.
 
 Sources: links above; upstream pinned `15ec7bf82864e0505dc682051c0d688a946f5ece`.
+
+## Verified selected-device inventory: 20 platform DTS/overlays (CI)
+
+Research CI: https://github.com/Johnny-Kao/sel4-pagemap-research/actions/runs/41629627065 (head `d9b78d02c592fde2ae22caae03861e292d4bb776`), successful job. `scripts/inventory_selected_kernel_devices.py` combined each DTS with its selected overlay, used upstream `FdtParser`, `get_kernel_devices()`, the actual `hardware.yml` match, `get_device_page_bits()` and the translated `node.get_regions()` inputs, and stored the 62 row JSON artifact.
+
+Results: **20/20 platform inputs generated; 62 actual selected region entries examined; zero reservation undercoverage and zero mapped-prefix undercoverage in this selection.** This is a 20-platform sample, not an exhaustive entire supported-platform inventory.
+
+Real unaligned selected device examples:
+
+| Platform / device | Physical base | reg size | kernel_size | Page size | Undercoverage? |
+| --- | --- | --- | --- | --- | --- |
+| rpi4 UART | `0xfe215040` | `0x40` | `0x1000` | `0x1000` | no (user: true) |
+| odroidc2 UART | `0xc81004c0` | `0x18` | `0x1000` | `0x1000` | no (user: true) |
+| sabre interrupt-controller subregion | `0xa00100` | `0x100` | `0x1000` | `0x1000` | no (user: false) |
+| sabre timer | `0xa00600` | `0x20` | `0x1000` | `0x1000` | no (user: false) |
+| hifive CLINT | `0x2000000` | `0x10000` | `0x200000` | `0x200000` | no |
+| tx2 SMMU | `0x12000000` | `0x1000000` | `0x1000` | `0x1000` | no |
+
+These are translated physical inputs captured after node selection. The non-page-aligned sabre interrupt controller subregion and timer occupy the **same 4KiB page** `[0xa00000,0xa01000)`, showing that devices can have distinct register ranges but share a hardware page. Their aligned groups can be deduplicated by `c_header.get_kernel_devices` through equality and `take_labels`. This page-sharing design must be covered in regression tests: naive overlap rejection of all distinct DT `reg` regions would break supported hardware.
+
+Interpretation:
+- It is **false** that all supported kernel-selected device addresses are page aligned.
+- It is **true for this 20-platform sample** that all misaligned selected regions fit into the rounded mapped/reserved span under the old formula.
+- No observed use of deliberately omitted trailing pages as reserved headroom. The opposite: small subpage register blocks and explicit register-label offsets are practical reasons for supporting misaligned base.
+- A blanket upstream guard `base % page_size == 0` would reject actual seL4 platform device definitions and violate downstream compatibility.
+- To test the latent error fairly, need an actual supported input with a large enough unaligned region crossing a page boundary and a device binding permitting that layout; absent that, label it a source-level invariant gap and potential future breakage, not a current supported-platform regression.
+
+The `cache-unified` binding requirement was added to both synthetic PL310 fixtures in the research branch, with regression CI https://github.com/Johnny-Kao/sel4-pagemap-research/actions/runs/41629323824 success. This is *not* a full Linux dt-schema validate and cannot certify an invented PL310 base address as silicon-realistic.
