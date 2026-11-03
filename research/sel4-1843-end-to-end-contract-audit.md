@@ -62,3 +62,19 @@ Potential alternative outcomes remain open:
 4. leave production behavior unchanged and only tighten tests/docs if relevant input is unsupported.
 
 No outcome is preselected.
+
+## Kernel consumption and fresh CI (verified 2026-11-03)
+
+Pinned upstream `src/arch/arm/machine/hardware.c` and `src/arch/riscv/machine/hardware.c` call `map_kernel_frame` once per generated `kernel_device_frames`, then `reserve_region` for each generated `kernel_device_reserved_regions`. This establishes distinct runtime consumers, not just unused generated declarations.
+
+In `src/kernel/boot.c`, `reserve_region` adds nonempty ranges to the ordered reserved list; `create_untypeds()` iterates gaps between reserved ranges and attempts `create_untypeds_for_region(..., true, ...)`, then handles the range to `CONFIG_PADDR_USER_DEVICE_TOP`. Therefore a missing reserved page *can* change device-Untyped issuance **if** the actual affected interval is under the target's device top, was not reserved for other reasons, and survives platform boot/config constraints. It is not yet evidence of real target exposure.
+
+CI https://github.com/Johnny-Kao/sel4-pagemap-research/actions/runs/41623290788 (head `d5ff85ea5afd0fc34e7ef1f443295321871601d4`) completed successfully. New steps:
+- exhaustive interval trigger and alignment API equivalence;
+- full-generator positive and negative cases;
+- real-platform baseline/candidate 20-platform header comparison;
+- new C header mapped frame / reserved range and YAML/JSON exclusion differentials, with uploaded artifacts.
+
+The multi-output test verifies that correcting `Region.align_size` also alters the mapped frame list for triggering crafted DTB inputs, not merely reserved ranges; the generated YAML/JSON excluded-device ranges also change. This reinforces the need to define both contracts prior to an upstream fix.
+
+Still **not** done: supported-platform/device-tree binding provenance (real physical-device affected instance), kernel boot on a supported target with a triggering DTB, actual Device Untyped observation, full upstream acceptance tests, and proof of compatibility for every downstream caller. No kernel/runtime corruption or crash demonstrated.
